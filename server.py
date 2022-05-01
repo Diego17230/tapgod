@@ -10,7 +10,7 @@ class Server:
         self.server = ipv4
         self.port = port
         self.current_id = "0"
-        self.clicked = {0: 20, 1: 20}
+        self.clicked = {0: 15, 1: 15}
         self.clients = clients
 
         try:
@@ -73,5 +73,5 @@ class Server:
             start_new_thread(self.threaded_client, (conn,))
 
 
-DEBUG = True
+DEBUG = False
 server = Server(IP, PORT, 2)

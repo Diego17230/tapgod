@@ -11,45 +11,7 @@ from ast import literal_eval
 from config import IP, PORT, SCREEN_HEIGHT, SCREEN_WIDTH
 
 
-class PlayerBar(pygame.sprite.Sprite):
-    def __init__(self):
-        self.surf = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT / 2))
-        self.rect = self.surf.get_rect(topleft=(0, SCREEN_HEIGHT / 2))
-        self.surf.fill("White")
-
-    def handle_click(self, click_pos: tuple) -> bool:
-        if self.rect.collidepoint(click_pos):
-            return True
-        return False
-
-
 class Network:
-    """
-    A component to attach to clients of a server.
-
-    Attributes
-    ----------
-    client : socket
-        The socket server to set up a connection to.
-    host : str
-        The server ip to connect to.
-    port : int
-        The port to bind to on the server.
-    addr : tuple
-        The complete address to bind to.
-    id : int
-        The id number for the client.
-    bytes : int
-        The byte limit of data to decode.
-
-    Methods
-    -------
-    connect()
-        Get the client id and connect to the server.
-    send(data)
-        Encodes data to send to the server.
-    """
-
     def __init__(self, ip: str, port: int, byte_limit: int):
         self.client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.host = ip
@@ -59,36 +21,33 @@ class Network:
         self.bytes = byte_limit
 
     def connect(self):
-        """
-        Connect to the server and return a client id.
-
-        Returns
-        -------
-        int
-            A number for the id of the client.
-        """
         self.client.connect(self.addr)
         return self.client.recv(2048).decode()
 
     def send(self, data):
-        """
-        Send data to the server.
-
-        Parameters
-        ----------
-        data : str
-            The data to encode and send to the server.
-
-        Returns
-        -------
-        str
-            The other client's reply after going through the server.
-        """
         try:
             self.client.send(data.encode())
             return self.client.recv(self.bytes).decode()
         except socket.error as e:
             return str(e)
+
+
+class PlayerBar(pygame.sprite.Sprite):
+    def __init__(self):
+        self.surf = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT / 2))
+        self.rect = self.surf.get_rect(topleft=(0, SCREEN_HEIGHT / 2))
+        self.surf.fill("White")
+
+    def set_y(self, amount):
+        self.surf = pygame.Surface(
+                (SCREEN_WIDTH, (SCREEN_HEIGHT / 30) * amount))
+        self.surf.fill("White")
+        self.rect = self.surf.get_rect(bottom=SCREEN_HEIGHT)
+
+    def handle_click(self, click_pos: tuple) -> bool:
+        if self.rect.collidepoint(click_pos):
+            return True
+        return False
 
 
 class Game:
@@ -97,13 +56,8 @@ class Game:
         pygame.init()
         self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
         self.clock = pygame.time.Clock()
-        pygame.display.set_caption("TapGod")
-
-        # -Multiplayer-
-        self.network = Network(
-                IP,
-                PORT,
-                128)
+        pygame.display.set_caption("Tap God")
+        self.network = Network(IP, PORT, 128)
 
         # -Game Stuff-
         self.player_bar = PlayerBar()
@@ -116,6 +70,11 @@ class Game:
         if debug:
             print(reply)
         return literal_eval(reply)
+
+    def handle_clicks(self, clicks):
+        for player_id, click_total in clicks.items():
+            if player_id == int(self.network.id):
+                self.player_bar.set_y(click_total)
 
     def run(self):
         running = True
@@ -135,10 +94,9 @@ class Game:
 
             # Sends the clicked status to the server
             reply = self.send_clicked()
-            for player, score in reply.items():
-                # print(player, score)
-                pass
+            self.handle_clicks(reply)
 
+            self.screen.fill("Black")
             self.screen.blit(self.player_bar.surf, self.player_bar.rect)
 
             pygame.display.flip()
