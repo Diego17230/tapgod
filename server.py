@@ -1,7 +1,9 @@
 import socket
+import json
 from _thread import start_new_thread
 from sys import exc_info
 from config import IP, PORT
+from threading import Thread
 
 
 class Server:
@@ -56,7 +58,8 @@ class Server:
                     if DEBUG:
                         print(f"Sending: {self.clicked}")
 
-                conn.sendall(str(self.clicked).encode())
+                conn.sendall(json.dumps(self.clicked).encode())
+                # conn.sendall(str(self.clicked).encode())
                 # Checks if both players have the -1 code (play again)
                 if all([status == -1 for status in self.clicked.values()]) or set(self.clicked.values()) == {-1, 15}:
                     self.clicked = {0: 15, 1: 15}
@@ -79,8 +82,13 @@ class Server:
                 break
             print("Connected to: ", addr)
 
-            start_new_thread(self.threaded_client, (conn,))
+            conn_thread = Thread(
+                    target=self.threaded_client,
+                    args=(conn,),
+                    daemon=True)
+            conn_thread.start()
+            # start_new_thread(self.threaded_client, (conn,))
 
 
-DEBUG = True
+DEBUG = False
 server = Server(IP, PORT, 2)

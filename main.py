@@ -7,7 +7,7 @@ from pygame.locals import (
 )
 import sys
 import socket
-from ast import literal_eval
+import json
 from config import IP, PORT, SCREEN_HEIGHT, SCREEN_WIDTH
 
 
@@ -46,9 +46,6 @@ class AgainButton(pygame.sprite.Sprite):
         # Recenters the border
         self.border.center = self.rect.center
 
-    def handle_click(self):
-        pass
-
     def blit(self, screen: pygame.surface.Surface):
         screen.blit(self.surf, self.rect)
         pygame.draw.rect(screen, self.primary, self.border, 5, 10)
@@ -86,20 +83,27 @@ class Game:
         self.again_button = None
         self.again = False
 
+    @staticmethod
+    def load_response(reply):
+        reply = json.loads(reply)
+        for key in ("0", "1"):
+            reply[int(key)] = reply.pop(key)
+        return reply
+
     def send_clicked(self, debug=False):
         formatted = f"{self.network.id}:{int(self.clicked)}"
         reply = self.network.send(formatted)
         self.clicked = False
         if debug:
             print(reply)
-        return literal_eval(reply)
+        return self.load_response(reply)
 
     def send_again(self, debug=False):
         formatted = f"{self.network.id}:-1"
         reply = self.network.send(formatted)
         if debug:
             print(reply)
-        return literal_eval(reply)
+        return self.load_response(reply)
 
     def handle_clicks(self, clicks):
         click_total = clicks[int(self.network.id)]
