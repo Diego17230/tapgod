@@ -6,13 +6,12 @@ from threading import Thread
 
 
 class Server:
-    def __init__(self, ipv4: str, port: int, clients=2):
+    def __init__(self, ipv4: str, port: int):
         self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.server = ipv4
         self.port = port
         self.current_id = "0"
         self.clicked = {0: 15, 1: 15}
-        self.clients = clients
 
         try:
             self.s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -20,11 +19,13 @@ class Server:
         except socket.error as e:
             print(e)
 
-        self.s.listen(clients)
+        self.s.listen(2)
         print("Waiting for a connection")
         self.accept_conn()
 
     def threaded_client(self, conn):
+        if self.current_id == "2":
+            self.current_id = "0"
         conn.send(self.current_id.encode())
         self.clicked[int(self.current_id)] = -2
         if all([status == -2 for status in self.clicked.values()]):
@@ -61,7 +62,6 @@ class Server:
                         print(f"Sending: {self.clicked}")
 
                 conn.sendall(json.dumps(self.clicked).encode())
-                # conn.sendall(str(self.clicked).encode())
                 # Checks if both players have the -1 code (play again)
                 if all([status == -1 for status in self.clicked.values()]) or set(self.clicked.values()) == {-1, 15}:
                     self.clicked = {0: 15, 1: 15}
@@ -89,8 +89,7 @@ class Server:
                     args=(conn,),
                     daemon=True)
             conn_thread.start()
-            # start_new_thread(self.threaded_client, (conn,))
 
 
 DEBUG = False
-server = Server(IP, PORT, 2)
+Server(IP, PORT)

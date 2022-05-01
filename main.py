@@ -165,6 +165,7 @@ class Game:
         click_total = clicks[int(self.network.id)]
         if click_total == -2:
             click_total = 15
+            self.text = self.font.render("Waiting for opponent", True, "Red")
         self.player_bar.set_y(click_total)
         if not click_total and not self.frozen:
             self.end_match(False)
