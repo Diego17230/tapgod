@@ -37,18 +37,67 @@ class AgainButton(pygame.sprite.Sprite):
             colors = ("White", "Black")
         else:
             colors = ("Black", "White")
-        self.primary = colors[0]
+        self.colors = colors
         self.surf = font.render("Again", True, *colors)
         self.rect = self.surf.get_rect(
                 center=(SCREEN_WIDTH / 2, SCREEN_HEIGHT - 150))
+
+        # -Visuals-
         self.border = pygame.Rect(
                 (0, 0), self.rect.inflate(20, 20).size)
         # Recenters the border
         self.border.center = self.rect.center
+        self.inflate = True
+        self.font = font
+        self.font_size = 30
+        self.timer = 0
+
+    def reset(self):
+        black_background = self.colors[0] == "White"
+        # Resets button
+        self.__init__(
+                pygame.font.SysFont("Comic Sans MS", 30),
+                black_background)
+
+    def inflate_surf(self, plus: int):
+        self.font = pygame.font.SysFont("Comic Sans MS", self.font_size + plus)
+        self.font_size += plus
+        self.surf = self.font.render("Again", True, *self.colors)
+        self.rect = self.surf.get_rect(
+                center=(SCREEN_WIDTH / 2, SCREEN_HEIGHT - 150))
+        self.border = pygame.Rect(
+                (0, 0), self.rect.inflate(20, 20).size)
+        self.border.center = self.rect.center
+
+    def update(self):
+        if not self.timer % 3:
+            if self.inflate:
+                self.inflate_surf(2)
+            else:
+                self.inflate_surf(-2)
+        if self.rect.w > 110 or self.rect.w < 60:
+            self.inflate = not self.inflate
+        self.timer += 1
 
     def blit(self, screen: pygame.surface.Surface):
         screen.blit(self.surf, self.rect)
-        pygame.draw.rect(screen, self.primary, self.border, 5, 10)
+        # Draws border
+        pygame.draw.rect(screen, self.colors[0], self.border, 5, 10)
+
+
+class TapParticle:
+    def __init__(self, center):
+        self.center = center
+        self.radius = 2
+        self.alive = True
+        self.rad_increase = 1
+
+    def draw(self, screen):
+        pygame.draw.circle(screen, "Black", self.center, self.radius, 3)
+        self.radius += self.rad_increase
+        self.rad_increase += 0.25
+        if self.radius >= 50:
+            self.alive = False
 
 
 class PlayerBar(pygame.sprite.Sprite):
@@ -82,6 +131,7 @@ class Game:
         self.text = None
         self.again_button = None
         self.again = False
+        self.particles = []
 
     @staticmethod
     def load_response(reply):
@@ -108,9 +158,9 @@ class Game:
     def handle_clicks(self, clicks):
         click_total = clicks[int(self.network.id)]
         self.player_bar.set_y(click_total)
-        if not click_total:
+        if not click_total and not self.frozen:
             self.end_match(False)
-        if not clicks[int(not int(self.network.id))]:
+        if not clicks[int(not int(self.network.id))] and not self.frozen:
             self.end_match(True)
 
     def end_match(self, win):
@@ -130,6 +180,7 @@ class Game:
     def run(self):
         running = True
         while running:
+            mouse_position = pygame.mouse.get_pos()
             for event in pygame.event.get():
                 if event.type == QUIT:
                     running = False
@@ -139,11 +190,16 @@ class Game:
                         running = False
 
                 elif event.type == MOUSEBUTTONDOWN:
-                    mouse_position = pygame.mouse.get_pos()
                     if self.player_bar.rect.collidepoint(mouse_position) and not self.frozen:
                         self.clicked = True
+                        self.particles.append(TapParticle(mouse_position))
                     if self.again_button is not None and self.again_button.rect.collidepoint(mouse_position):
                         self.again = True
+                        self.again_button = None
+                        self.text = self.font.render(
+                                "Waiting for opponent",
+                                True,
+                                "Red")
 
             if not self.again:
                 # Sends the clicked status to the server
@@ -162,7 +218,19 @@ class Game:
             if self.text is not None:
                 self.screen.blit(self.text, self.center_surf(self.text))
             if self.again_button is not None:
+                if self.again_button.rect.collidepoint(mouse_position):
+                    self.again_button.update()
+                else:
+                    self.again_button.reset()
                 self.again_button.blit(self.screen)
+
+            for i, particle in sorted(enumerate(self.particles), reverse=True):
+                # The functions applying to particles allows for removal
+                # during iteration, which can cause problems if not
+                # attended to
+                particle.draw(self.screen)
+                if not particle.alive:
+                    self.particles.pop(i)
 
             pygame.display.flip()
             self.clock.tick(60)
