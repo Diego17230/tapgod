@@ -24,14 +24,14 @@ class Server:
         self.accept_conn()
 
     def threaded_client(self, conn):
-        conn.send(str.encode(self.current_id))
+        conn.send(self.current_id.encode())
         self.current_id = str(int(self.current_id) + 1)
         while True:
             try:
                 data = conn.recv(2048)
-                reply = data.decode('utf-8')
+                reply = data.decode("utf-8")
                 if not data:
-                    conn.send(str.encode("Goodbye"))
+                    conn.send("Goodbye".encode())
                     break
                 else:
                     if DEBUG:
@@ -39,19 +39,28 @@ class Server:
 
                     # Seperates reply into a list [id, clicked]
                     reply = reply.split(":")
-                    # Will be 0 or 1 depending on if player clicked or not
-                    clicked = int(reply[1])
-
                     player_id = int(reply[0])
-                    # Gets the opponent's id
-                    op_id = int(not player_id)
-                    self.clicked[player_id] += clicked
-                    self.clicked[op_id] += -clicked
+
+                    if int(reply[1]) == -1:
+                        # -1 is the code for playing again
+                        self.clicked[player_id] = -1
+                    else:
+                        # Will be 0 or 1 depending on if player clicked or not
+                        clicked = int(reply[1])
+
+                        # Gets the opponent's id
+                        op_id = int(not player_id)
+                        self.clicked[player_id] += clicked
+                        self.clicked[op_id] += -clicked
 
                     if DEBUG:
                         print(f"Sending: {self.clicked}")
 
                 conn.sendall(str(self.clicked).encode())
+                # Checks if both players have the -1 code (play again)
+                if all([status == -1 for status in self.clicked.values()]) or set(self.clicked.values()) == {-1, 15}:
+                    self.clicked = {0: 15, 1: 15}
+
             except Exception as e:
                 # Prints exception with line number
                 print(f"{e}, on line {exc_info()[2].tb_lineno}")
@@ -73,5 +82,5 @@ class Server:
             start_new_thread(self.threaded_client, (conn,))
 
 
-DEBUG = False
+DEBUG = True
 server = Server(IP, PORT, 2)
