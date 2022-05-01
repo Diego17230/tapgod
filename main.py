@@ -95,8 +95,12 @@ class TapParticle:
     def draw(self, screen):
         pygame.draw.circle(screen, "Black", self.center, self.radius, 3)
         self.radius += self.rad_increase
-        self.rad_increase += 0.25
-        if self.radius >= 50:
+        if self.radius <= 40:
+            self.rad_increase += 0.25
+        else:
+            # Slows down radius increase at the end
+            self.rad_increase = 0.4
+        if self.radius >= 48:
             self.alive = False
 
 
@@ -126,12 +130,14 @@ class Game:
         # -Game Stuff-
         self.player_bar = PlayerBar()
         self.clicked = False
-        self.frozen = False
+        self.frozen = True
         self.font = pygame.font.SysFont("Comic Sans MS", 30)
         self.text = None
         self.again_button = None
         self.again = False
         self.particles = []
+        self.opening_screen = 0
+        self.started = False
 
     @staticmethod
     def load_response(reply):
@@ -157,6 +163,8 @@ class Game:
 
     def handle_clicks(self, clicks):
         click_total = clicks[int(self.network.id)]
+        if click_total == -2:
+            click_total = 15
         self.player_bar.set_y(click_total)
         if not click_total and not self.frozen:
             self.end_match(False)
@@ -201,17 +209,38 @@ class Game:
                                 True,
                                 "Red")
 
+            if self.started:
+                # -Opening Screen-
+                if self.opening_screen == 300:
+                    self.text = self.font.render("Match begun!", True, "Red")
+                for num in (3, 2, 1):
+                    frame = 210 + ((num - 3) * 60)
+                    if self.opening_screen == frame:
+                        self.text = self.font.render(str(num), True, "Red")
+                if self.opening_screen == 30:
+                    self.text = self.font.render("TAP!", True, "Red")
+                if self.opening_screen == 1:
+                    self.frozen = False
+                    self.text = None
+                if self.opening_screen:
+                    self.opening_screen -= 1
+
             if not self.again:
                 # Sends the clicked status to the server
                 reply = self.send_clicked()
+                if any([status == -2 for status in reply.values()]):
+                    self.frozen = True
+                elif not self.started and all([status == 15 for status in reply.values()]) and not self.opening_screen:
+                    self.started = True
+                    self.opening_screen = 300
                 self.handle_clicks(reply)
             else:
                 reply = self.send_again()
                 if all([status == -1 for status in reply.values()]) or set(reply.values()) == {-1, 15}:
                     self.again = False
-                    self.frozen = False
                     self.again_button = None
                     self.text = None
+                    self.opening_screen = 300
 
             self.screen.fill("Black")
             self.screen.blit(self.player_bar.surf, self.player_bar.rect)

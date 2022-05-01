@@ -1,6 +1,5 @@
 import socket
 import json
-from _thread import start_new_thread
 from sys import exc_info
 from config import IP, PORT
 from threading import Thread
@@ -27,6 +26,9 @@ class Server:
 
     def threaded_client(self, conn):
         conn.send(self.current_id.encode())
+        self.clicked[int(self.current_id)] = -2
+        if all([status == -2 for status in self.clicked.values()]):
+            self.clicked = {0: 15, 1: 15}
         self.current_id = str(int(self.current_id) + 1)
         while True:
             try:
