@@ -2,7 +2,7 @@ import socket
 import json
 from sys import exc_info
 from config import IP, PORT
-from threading import Thread
+from threading import Thread, active_count
 
 
 class Server:
@@ -12,6 +12,7 @@ class Server:
         self.port = port
         self.current_id = "0"
         self.clicked = {0: 15, 1: 15}
+        self.conn_ids = []
 
         try:
             self.s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -25,12 +26,20 @@ class Server:
 
     def threaded_client(self, conn):
         if self.current_id == "2":
-            self.current_id = "0"
+            if active_count() == 2:
+                # Resets current id
+                self.current_id = "0"
+            else:
+                self.current_id = str(int(not self.conn_ids[0]))
         conn.send(self.current_id.encode())
+        # Sets waiting status to client
         self.clicked[int(self.current_id)] = -2
         if all([status == -2 for status in self.clicked.values()]):
             self.clicked = {0: 15, 1: 15}
+        thread_id = int(self.current_id)
+        self.conn_ids.append(thread_id)
         self.current_id = str(int(self.current_id) + 1)
+
         while True:
             try:
                 data = conn.recv(2048)
@@ -65,6 +74,9 @@ class Server:
                 # Checks if both players have the -1 code (play again)
                 if all([status == -1 for status in self.clicked.values()]) or set(self.clicked.values()) == {-1, 15}:
                     self.clicked = {0: 15, 1: 15}
+                for id_ in (0, 1):
+                    if self.clicked[id_] == -1 and self.clicked[int(not id_)] == -2:
+                        self.clicked[id_] = -2
 
             except Exception as e:
                 # Prints exception with line number
@@ -73,6 +85,8 @@ class Server:
 
         print("Connection Closed")
         conn.close()
+        self.clicked = {0: -2, 1: -2}
+        self.conn_ids.remove(thread_id)
 
     def accept_conn(self):
         while True:
@@ -91,5 +105,5 @@ class Server:
             conn_thread.start()
 
 
-DEBUG = False
+DEBUG = True
 Server(IP, PORT)

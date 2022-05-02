@@ -163,7 +163,7 @@ class Game:
 
     def handle_clicks(self, clicks):
         click_total = clicks[int(self.network.id)]
-        if click_total == -2:
+        if click_total < 0:
             click_total = 15
             self.text = self.font.render("Waiting for opponent", True, "Red")
         self.player_bar.set_y(click_total)
@@ -171,6 +171,13 @@ class Game:
             self.end_match(False)
         if not clicks[int(not int(self.network.id))] and not self.frozen:
             self.end_match(True)
+
+    def check_wait(self, reply):
+        if any([status == -2 for status in reply.values()]):
+            self.frozen = True
+            self.started = False
+            self.again = False
+            self.again_button = None
 
     def end_match(self, win):
         self.frozen = True
@@ -229,14 +236,14 @@ class Game:
             if not self.again:
                 # Sends the clicked status to the server
                 reply = self.send_clicked()
-                if any([status == -2 for status in reply.values()]):
-                    self.frozen = True
-                elif not self.started and all([status == 15 for status in reply.values()]) and not self.opening_screen:
+                self.check_wait(reply)
+                if not any([status == -2 for status in reply.values()]) and not self.started and all([status == 15 for status in reply.values()]) and not self.opening_screen:
                     self.started = True
                     self.opening_screen = 300
                 self.handle_clicks(reply)
             else:
                 reply = self.send_again()
+                self.check_wait(reply)
                 if all([status == -1 for status in reply.values()]) or set(reply.values()) == {-1, 15}:
                     self.again = False
                     self.again_button = None
