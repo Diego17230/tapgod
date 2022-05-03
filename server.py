@@ -35,6 +35,7 @@ class Server:
         # Sets waiting status to client
         self.clicked[int(self.current_id)] = -2
         if all([status == -2 for status in self.clicked.values()]):
+            # Starts the game if both players have the -2 status
             self.clicked = {0: 15, 1: 15}
         thread_id = int(self.current_id)
         self.conn_ids.append(thread_id)

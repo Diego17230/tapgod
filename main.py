@@ -139,6 +139,12 @@ class Game:
         self.opening_screen = 0
         self.started = False
 
+        # -Sound-
+        pygame.mixer.init(frequency=22050)
+        pygame.mixer.music.load("audio/music.wav")
+        pygame.mixer.music.play(-1)
+        pygame.mixer.music.set_volume(0.2)
+
     @staticmethod
     def load_response(reply):
         reply = json.loads(reply)
