@@ -6,6 +6,7 @@ from pygame.locals import (
     MOUSEBUTTONDOWN,
 )
 import sys
+import os
 import socket
 import json
 from config import IP, PORT, SCREEN_HEIGHT, SCREEN_WIDTH
@@ -141,7 +142,12 @@ class Game:
 
         # -Sound-
         pygame.mixer.init(frequency=22050)
-        pygame.mixer.music.load("audio/music.wav")
+        if getattr(sys, 'frozen', False):
+            pygame.mixer.music.load(
+                    os.path.join(sys._MEIPASS, "audio/music.wav")
+                    )
+        else:
+            pygame.mixer.music.load("audio/music.wav")
         pygame.mixer.music.play(-1)
         pygame.mixer.music.set_volume(0.2)
 
